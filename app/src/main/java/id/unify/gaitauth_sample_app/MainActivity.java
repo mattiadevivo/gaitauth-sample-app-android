@@ -134,6 +134,13 @@ public class MainActivity
         alert.show();
     }
 
+    /*
+    * Initialize an instance of the GaitAuth SDK
+    * <p>
+    * OnCompletion: start GaitAuth Foreground Service
+    * <p>
+    * OnFailure: show an AlertDialog for failure's reasons
+    * */
     private void initializeGaitAuth(Context context, String sdkKey) {
         showProgressBar();
         UnifyID.initialize(context, sdkKey, USER, new CompletionHandler() {
@@ -269,7 +276,14 @@ public class MainActivity
                 break;
         }
     }
-
+    /**
+    * Load a model given the modelId.
+    * <p>
+    * Update the UI accordingly based on model status if success.
+    * Otherwise, update the UI to notify failure's reasons
+    * <p>
+    * More detailed at: https://developer.unify.id/docs/gaitauth/model-training/#loading-a-model
+    * */
     private void loadModel(String modelId) {
         showProgressBar();
         AsyncTask.execute(() -> {
@@ -290,6 +304,13 @@ public class MainActivity
         });
     }
 
+
+    /**
+     * Handle onClick of CreateModelBtn:
+     * Go to FeatureCollectionFragment if succeeded, otherwise show toast to notify the failure
+     * <p>
+     * More detailed at: https://developer.unify.id/docs/gaitauth/model-training/#create-a-gait-model
+     */
     @Override
     public void onCreateModelPressed() {
         showProgressBar();
@@ -329,6 +350,15 @@ public class MainActivity
         gaitAuthService.stopFeatureCollectionForTraining();
     }
 
+
+    /**
+     * Add buffered features to {@link #model}
+     * <p>
+     * Update the UI accordingly if success.
+     * Otherwise, showToast of the failure message
+     * <p>
+     * More detailed documentation of our SDK API via: https://developer.unify.id/docs/gaitauth/model-training/#loading-a-model
+     * */
     @Override
     public int onAddFeaturesPressed() {
         showProgressBar();
@@ -357,6 +387,12 @@ public class MainActivity
         }
     }
 
+    /**
+     * Start training model if users press `Okay` button of the dialog,
+     * otherwise dismiss the dialog
+     * <p>
+     * More detailed documentation of our SDK API via: https://developer.unify.id/docs/gaitauth/model-training/#training-a-model
+     * */
     @Override
     public void onTrainModelPressed() {
         // Create a dialog to confirm action
@@ -391,6 +427,11 @@ public class MainActivity
                 .show();
     }
 
+    /**
+     * Refresh a model status, and update the UI accordingly the status.
+     * <p>
+     * More detailed documentation of our SDK API via: https://developer.unify.id/docs/gaitauth/model-training/#training-a-model
+     */
     @Override
     public void onRefreshPressed() {
         showProgressBar();

@@ -31,6 +31,13 @@ import id.unify.sdk.gaitauth.GaitFeature;
 import id.unify.sdk.gaitauth.GaitModel;
 import id.unify.sdk.gaitauth.GaitQuantileConfig;
 
+/**
+ * A Foreground service to handle the collection, training, and testing of collected GaitFeatures
+ * using UnifyID GaitAuth SDK
+ * <p>
+ *  More detailed documentation of our SDK API via: https://developer.unify.id/docs/gaitauth/
+ * <p>
+ * */
 public class GaitAuthService extends Service implements FeatureEventListener {
     private static final String TAG = "GaitAuthService";
 
@@ -145,6 +152,13 @@ public class GaitAuthService extends Service implements FeatureEventListener {
                 .build();
     }
 
+    /**
+     * A callback that receives new {@link GaitFeature}
+     * after {@link #startFeatureCollectionForTraining()} is called
+     * <p>
+     * Every new GaitFeature will be buffered to local disk
+     * and Broadcast is sent to update the number of collected Features to the UI
+     */
     @Override
     public void onNewFeature(GaitFeature feature) {
         featureStore.add(feature);
@@ -160,12 +174,26 @@ public class GaitAuthService extends Service implements FeatureEventListener {
         return training;
     }
 
+    /**
+     * Start collecting gait features for Training
+     * <p>
+     * New collected feature will be return in {@link #onNewFeature(GaitFeature)} of this class
+     * <p>
+     * More detailed documentation of our SDK API via: https://developer.unify.id/docs/gaitauth/model-training/#stop-feature-collection
+     */
     public void startFeatureCollectionForTraining() throws GaitAuthException {
         GaitAuth.getInstance().registerListener(this);
         updateNotificationContent(NOTIFICATION_CONTENT_COLLECTION);
         training = true;
     }
 
+    /**
+     * Stop collecting gait features for Training
+     * <p>
+     * {@link #onNewFeature(GaitFeature)} will stop receive new GaitFeatures
+     * <p>
+     * More detailed documentation of our SDK API via: https://developer.unify.id/docs/gaitauth/model-training/#start-feature-collection
+     */
     public void stopFeatureCollectionForTraining() {
         GaitAuth.getInstance().unregisterAllListeners();
         updateNotificationContent(NOTIFICATION_CONTENT_READY);
@@ -176,6 +204,12 @@ public class GaitAuthService extends Service implements FeatureEventListener {
         return testing;
     }
 
+    /**
+     * Start collecting gait features for Testing
+     * <p>
+     * NOTE: No callback is needed for collecting features in testing phrase
+     * <p>
+     */
     public void startFeatureCollectionForTesting(GaitModel model) throws GaitAuthException {
         GaitQuantileConfig config = new GaitQuantileConfig(QUANTILE_THRESHOLD);
         authenticator = GaitAuth.getInstance().createAuthenticator(config, model);
@@ -183,6 +217,9 @@ public class GaitAuthService extends Service implements FeatureEventListener {
         testing = true;
     }
 
+    /**
+     * Stop collecting gait features for Testing
+     */
     public void stopFeatureCollectionForTesting() {
         if (authenticator != null) {
             authenticator.stop();
