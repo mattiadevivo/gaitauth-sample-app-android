@@ -6,7 +6,10 @@
 
 package id.unify.gaitauth_sample_app.fragments;
 
+import android.content.BroadcastReceiver;
 import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -14,8 +17,12 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Toast;
 
+import id.unify.gaitauth_sample_app.GaitAuthService;
 import androidx.annotation.NonNull;
 import androidx.fragment.app.Fragment;
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
+
+import java.util.Locale;
 
 import id.unify.gaitauth_sample_app.R;
 import id.unify.gaitauth_sample_app.databinding.FragmentTestingBinding;
@@ -37,6 +44,18 @@ public class TestingFragment extends Fragment {
     private TestingListener callbacks;
     private boolean collecting = false;
 
+    // Handle broadcasts from FeatureCollectionService to bump collectedCount
+    private BroadcastReceiver featureStatsUpdateReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if (getActivity() != null) {
+                int count = intent.getIntExtra(
+                        GaitAuthService.BROADCAST_EXTRA_FEATURE_COUNT, 0);
+                updateCollectedCountUI(count);
+            }
+        }
+    };
+
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container,
             Bundle savedInstanceState) {
@@ -50,6 +69,7 @@ public class TestingFragment extends Fragment {
         }
 
         parseArgumentsAndUpdateCollectingState();
+        setupBroadcastReceiver(context);
         refreshUI();
         setupStartOrStopBtnCallback();
         setupScoreFeaturesBtnCallback(context);
@@ -73,6 +93,25 @@ public class TestingFragment extends Fragment {
             viewBinding.startPauseCollectionButton.setText(R.string.start_collection_button);
             viewBinding.watchAnimation.pauseAnimation();
         }
+    }
+
+    // Setup broadcast receiver to get collectedCount from foreground service
+    private void setupBroadcastReceiver(Context context) {
+        IntentFilter intentFilter = new IntentFilter();
+        intentFilter.addAction(GaitAuthService.ACTION_FEATURE_COLLECTED_COUNT_UPDATE);
+        LocalBroadcastManager.getInstance(context).registerReceiver(featureStatsUpdateReceiver,
+                intentFilter);
+    }
+
+    private void runOnUiThread(Runnable action) {
+        if (getActivity() != null) {
+            getActivity().runOnUiThread(action);
+        }
+    }
+
+    private void updateCollectedCountUI(int count) {
+        runOnUiThread(() -> viewBinding.collectedScoreCount.setText(String.format(Locale.US, "%d",
+                count)));
     }
 
     private void setupStartOrStopBtnCallback() {

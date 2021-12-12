@@ -37,5 +37,19 @@
             android:text="@string/score_features"
             android:textAllCaps="false"
             android:textSize="24sp" />
+
+        <TextView
+            android:id="@+id/collectedScoreLabel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/collected_label"
+            android:textAlignment="center" />
+
+        <TextView
+            android:id="@+id/collectedScoreCount"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textAlignment="center"
+            android:textSize="18sp" />
     </LinearLayout>
 </LinearLayout>
