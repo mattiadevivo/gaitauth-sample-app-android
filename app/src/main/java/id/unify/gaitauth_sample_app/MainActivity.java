@@ -15,6 +15,7 @@ import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
+import android.util.Base64;
 import android.util.Log;
 import android.view.View;
 import android.widget.EditText;
@@ -24,11 +25,22 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentTransaction;
 
+import com.android.volley.Request;
+import com.android.volley.RequestQueue;
+import com.android.volley.Response;
+import com.android.volley.toolbox.JsonObjectRequest;
+import com.android.volley.toolbox.Volley;
 import com.google.common.base.Strings;
 
+import org.json.JSONException;
+
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 import id.unify.gaitauth_sample_app.databinding.ActivityMainBinding;
 import id.unify.gaitauth_sample_app.fragments.FeatureCollectionFragment;
@@ -37,7 +49,9 @@ import id.unify.gaitauth_sample_app.fragments.ModelErrorFragment;
 import id.unify.gaitauth_sample_app.fragments.ModelPendingFragment;
 import id.unify.gaitauth_sample_app.fragments.ScoreFragment;
 import id.unify.gaitauth_sample_app.fragments.SelectModelFragment;
+import id.unify.gaitauth_sample_app.fragments.SendFeaturesFragment;
 import id.unify.gaitauth_sample_app.fragments.TestingFragment;
+import id.unify.gaitauth_sample_app.models.FeatureData;
 import id.unify.sdk.core.CompletionHandler;
 import id.unify.sdk.core.UnifyID;
 import id.unify.sdk.core.UnifyIDConfig;
@@ -55,6 +69,7 @@ public class MainActivity
         extends AppCompatActivity
         implements SelectModelFragment.SelectModelListener,
         FeatureCollectionFragment.FeatureCollectionListener,
+        SendFeaturesFragment.SendFeaturesListener,
         ModelPendingFragment.ModelPendingListener,
         TestingFragment.TestingListener,
         ScoreFragment.ScoreListener {
@@ -255,19 +270,8 @@ public class MainActivity
     private void renderFragmentBasedOnModelStatus(GaitModel.Status status) {
         switch (status) {
             case CREATED:
-                showFragment(FeatureCollectionFragment.build(gaitAuthService.isTraining()),
-                        FeatureCollectionFragment.SCREEN_TITLE);
-                break;
-            case TRAINING:
-                showFragment(new ModelPendingFragment(), ModelPendingFragment.SCREEN_TITLE);
-                break;
-            case FAILED:
-                showFragment(ModelErrorFragment.newInstance(model.getReason()),
-                        ModelErrorFragment.SCREEN_TITLE);
-                break;
-            case READY:
-                showFragment(TestingFragment.build(gaitAuthService.isTesting()),
-                        TestingFragment.SCREEN_TITLE);
+                showFragment(SendFeaturesFragment.build(gaitAuthService.isTraining()),
+                        SendFeaturesFragment.SCREEN_TITLE);
                 break;
             default:
                 // treat it as a failure
@@ -348,6 +352,79 @@ public class MainActivity
     @Override
     public void onStopCollectionBtnPressed() {
         gaitAuthService.stopFeatureCollectionForTraining();
+    }
+
+    /**
+     * Send features to HTTP server
+     * @return number of features updated
+     */
+    @Override
+    public int onSendFeaturesPressed(String serverUrl) {
+        showProgressBar();
+        try {
+            FeatureStore featureStore = FeatureStore.getInstance(this);
+            List<List<GaitFeature>> chunks = featureStore.getAll();
+
+            ByteArrayOutputStream outputStream = new ByteArrayOutputStream( );
+            for (List<GaitFeature> chunk: chunks) {
+                for (GaitFeature f: chunk) {
+                    try {
+                        outputStream.write(f.toString().getBytes(StandardCharsets.UTF_8));
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+            FeatureData data = new FeatureData(Base64.encodeToString(outputStream.toByteArray(), Base64.DEFAULT));
+
+            RequestQueue queue = Volley.newRequestQueue(this);
+            JsonObjectRequest jsonObjectRequest = new JsonObjectRequest
+                    (Request.Method.GET, String.format("%s/api/features/store:3000", serverUrl), data, response -> featureStore.empty(), (Response.ErrorListener) error -> {
+                        System.out.println(error.getMessage());
+                    });
+            queue.add(jsonObjectRequest);
+            return 100;
+        } finally {
+            hideProgressBar();
+        }
+    }
+
+    @Override
+    public double onCompareFeaturesPressed(String serverUrl) {
+        showProgressBar();
+        try {
+            FeatureStore featureStore = FeatureStore.getInstance(this);
+            List<List<GaitFeature>> chunks = featureStore.getAll();
+
+            ByteArrayOutputStream outputStream = new ByteArrayOutputStream( );
+            for (List<GaitFeature> chunk: chunks) {
+                for (GaitFeature f: chunk) {
+                    try {
+                        outputStream.write(f.toString().getBytes(StandardCharsets.UTF_8));
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+            FeatureData data = new FeatureData(Base64.encodeToString(outputStream.toByteArray(), Base64.DEFAULT));
+            RequestQueue queue = Volley.newRequestQueue(this);
+            AtomicReference<Double> cosine = new AtomicReference<>((double) 0);
+            JsonObjectRequest jsonObjectRequest = new JsonObjectRequest
+                    (Request.Method.GET, String.format("%s/api/features/compare:3000", serverUrl), data, response -> {
+                        featureStore.empty();
+                        try {
+                            cosine.set(response.getDouble("cosine"));
+                        } catch (JSONException e) {
+                            e.printStackTrace();
+                        }
+                    }, (Response.ErrorListener) error -> {
+                        System.out.println(error.getMessage());
+                    });
+            queue.add(jsonObjectRequest);
+            return cosine.get();
+        } finally {
+            hideProgressBar();
+        }
     }
 
 
