@@ -147,8 +147,10 @@ public class SendFeaturesFragment extends Fragment {
             AsyncTask.execute(() -> {
                 double cosineSimilarity = callback.onCompareFeaturesPressed(viewBinding.editTextHttpServer.getText().toString());
                 // update UI needs to be in main thread
-                Toast.makeText(context, String.format("Comparison result: %f", cosineSimilarity),
-                        Toast.LENGTH_LONG).show();
+                runOnUiThread(() -> {
+                    Toast.makeText(context, String.format("Comparison result: %f", cosineSimilarity),
+                            Toast.LENGTH_LONG).show();
+                });
             });
         });
     }

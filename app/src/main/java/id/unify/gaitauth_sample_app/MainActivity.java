@@ -31,6 +31,7 @@ import com.android.volley.Response;
 import com.android.volley.toolbox.JsonObjectRequest;
 import com.android.volley.toolbox.Volley;
 import com.google.common.base.Strings;
+import com.google.gson.Gson;
 
 import org.json.JSONException;
 
@@ -51,6 +52,7 @@ import id.unify.gaitauth_sample_app.fragments.ScoreFragment;
 import id.unify.gaitauth_sample_app.fragments.SelectModelFragment;
 import id.unify.gaitauth_sample_app.fragments.SendFeaturesFragment;
 import id.unify.gaitauth_sample_app.fragments.TestingFragment;
+import id.unify.gaitauth_sample_app.models.CosineData;
 import id.unify.gaitauth_sample_app.models.FeatureData;
 import id.unify.sdk.core.CompletionHandler;
 import id.unify.sdk.core.UnifyID;
@@ -64,6 +66,8 @@ import id.unify.sdk.gaitauth.GaitAuthException;
 import id.unify.sdk.gaitauth.GaitFeature;
 import id.unify.sdk.gaitauth.GaitModel;
 import id.unify.sdk.gaitauth.GaitModelException;
+import okhttp3.MediaType;
+import okhttp3.OkHttpClient;
 
 public class MainActivity
         extends AppCompatActivity
@@ -76,6 +80,8 @@ public class MainActivity
 
     private static final String TAG = MainActivity.class.getSimpleName();
     public static final String USER = UUID.randomUUID().toString();
+
+    private OkHttpClient client = new OkHttpClient();
 
     private ActivityMainBinding viewBinding;
     private GaitModel model;
@@ -150,12 +156,12 @@ public class MainActivity
     }
 
     /*
-    * Initialize an instance of the GaitAuth SDK
-    * <p>
-    * OnCompletion: start GaitAuth Foreground Service
-    * <p>
-    * OnFailure: show an AlertDialog for failure's reasons
-    * */
+     * Initialize an instance of the GaitAuth SDK
+     * <p>
+     * OnCompletion: start GaitAuth Foreground Service
+     * <p>
+     * OnFailure: show an AlertDialog for failure's reasons
+     * */
     private void initializeGaitAuth(Context context, String sdkKey) {
         showProgressBar();
         UnifyID.initialize(context, sdkKey, USER, new CompletionHandler() {
@@ -280,14 +286,15 @@ public class MainActivity
                 break;
         }
     }
+
     /**
-    * Load a model given the modelId.
-    * <p>
-    * Update the UI accordingly based on model status if success.
-    * Otherwise, update the UI to notify failure's reasons
-    * <p>
-    * More detailed at: https://developer.unify.id/docs/gaitauth/model-training/#loading-a-model
-    * */
+     * Load a model given the modelId.
+     * <p>
+     * Update the UI accordingly based on model status if success.
+     * Otherwise, update the UI to notify failure's reasons
+     * <p>
+     * More detailed at: https://developer.unify.id/docs/gaitauth/model-training/#loading-a-model
+     */
     private void loadModel(String modelId) {
         showProgressBar();
         AsyncTask.execute(() -> {
@@ -356,6 +363,7 @@ public class MainActivity
 
     /**
      * Send features to HTTP server
+     *
      * @return number of features updated
      */
     @Override
@@ -365,9 +373,9 @@ public class MainActivity
             FeatureStore featureStore = FeatureStore.getInstance(this);
             List<List<GaitFeature>> chunks = featureStore.getAll();
 
-            ByteArrayOutputStream outputStream = new ByteArrayOutputStream( );
-            for (List<GaitFeature> chunk: chunks) {
-                for (GaitFeature f: chunk) {
+            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+            for (List<GaitFeature> chunk : chunks) {
+                for (GaitFeature f : chunk) {
                     try {
                         outputStream.write(f.toString().getBytes(StandardCharsets.UTF_8));
                     } catch (IOException e) {
@@ -377,13 +385,24 @@ public class MainActivity
             }
             FeatureData data = new FeatureData(Base64.encodeToString(outputStream.toByteArray(), Base64.DEFAULT));
 
-            RequestQueue queue = Volley.newRequestQueue(this);
-            JsonObjectRequest jsonObjectRequest = new JsonObjectRequest
-                    (Request.Method.GET, String.format("%s/api/features/store:3000", serverUrl), data, response -> featureStore.empty(), (Response.ErrorListener) error -> {
-                        System.out.println(error.getMessage());
-                    });
-            queue.add(jsonObjectRequest);
-            return 100;
+            okhttp3.Request request = new okhttp3.Request.Builder().url(String.format("%s/api/features/store", serverUrl)).post(okhttp3.RequestBody.create(MediaType.get("application/json"), outputStream.toByteArray())).build();
+            try {
+                okhttp3.Response response = client.newCall(request).execute();
+                if (!response.isSuccessful()) throw new IOException("Unexpected code " + response);
+
+                okhttp3.Headers responseHeaders = response.headers();
+                for (int i = 0; i < responseHeaders.size(); i++) {
+                    System.out.println(responseHeaders.name(i) + ": " + responseHeaders.value(i));
+                }
+
+                System.out.println(response.body().string());
+                return chunks.size();
+            } catch (IOException e) {
+                e.printStackTrace();
+            } finally {
+                featureStore.empty();
+            }
+            return 0;
         } finally {
             hideProgressBar();
         }
@@ -396,9 +415,9 @@ public class MainActivity
             FeatureStore featureStore = FeatureStore.getInstance(this);
             List<List<GaitFeature>> chunks = featureStore.getAll();
 
-            ByteArrayOutputStream outputStream = new ByteArrayOutputStream( );
-            for (List<GaitFeature> chunk: chunks) {
-                for (GaitFeature f: chunk) {
+            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+            for (List<GaitFeature> chunk : chunks) {
+                for (GaitFeature f : chunk) {
                     try {
                         outputStream.write(f.toString().getBytes(StandardCharsets.UTF_8));
                     } catch (IOException e) {
@@ -407,21 +426,26 @@ public class MainActivity
                 }
             }
             FeatureData data = new FeatureData(Base64.encodeToString(outputStream.toByteArray(), Base64.DEFAULT));
-            RequestQueue queue = Volley.newRequestQueue(this);
-            AtomicReference<Double> cosine = new AtomicReference<>((double) 0);
-            JsonObjectRequest jsonObjectRequest = new JsonObjectRequest
-                    (Request.Method.GET, String.format("%s/api/features/compare:3000", serverUrl), data, response -> {
-                        featureStore.empty();
-                        try {
-                            cosine.set(response.getDouble("cosine"));
-                        } catch (JSONException e) {
-                            e.printStackTrace();
-                        }
-                    }, (Response.ErrorListener) error -> {
-                        System.out.println(error.getMessage());
-                    });
-            queue.add(jsonObjectRequest);
-            return cosine.get();
+
+            okhttp3.Request request = new okhttp3.Request.Builder().url(String.format("%s/api/features/compare", serverUrl)).post(okhttp3.RequestBody.create(MediaType.get("application/json"), outputStream.toByteArray())).build();
+            try {
+                okhttp3.Response response = client.newCall(request).execute();
+                if (!response.isSuccessful()) throw new IOException("Unexpected code " + response);
+
+                okhttp3.Headers responseHeaders = response.headers();
+                for (int i = 0; i < responseHeaders.size(); i++) {
+                    System.out.println(responseHeaders.name(i) + ": " + responseHeaders.value(i));
+                }
+                Gson gson = new Gson();
+                CosineData fd = gson.fromJson(response.body().string(), CosineData.class);
+                System.out.printf("Received cosine: %f%n", fd.getCosine());
+                return fd.getCosine();
+            } catch (IOException e) {
+                e.printStackTrace();
+            } finally {
+                featureStore.empty();
+            }
+            return -1F;
         } finally {
             hideProgressBar();
         }
@@ -435,7 +459,7 @@ public class MainActivity
      * Otherwise, showToast of the failure message
      * <p>
      * More detailed documentation of our SDK API via: https://developer.unify.id/docs/gaitauth/model-training/#loading-a-model
-     * */
+     */
     @Override
     public int onAddFeaturesPressed() {
         showProgressBar();
@@ -444,7 +468,7 @@ public class MainActivity
             List<List<GaitFeature>> chunks = featureStore.getAll();
             int uploadedCounter = 0;
 
-            for (List<GaitFeature> chunk: chunks) {
+            for (List<GaitFeature> chunk : chunks) {
                 try {
                     model.add(chunk);
                     uploadedCounter += chunk.size();
@@ -469,7 +493,7 @@ public class MainActivity
      * otherwise dismiss the dialog
      * <p>
      * More detailed documentation of our SDK API via: https://developer.unify.id/docs/gaitauth/model-training/#training-a-model
-     * */
+     */
     @Override
     public void onTrainModelPressed() {
         // Create a dialog to confirm action
