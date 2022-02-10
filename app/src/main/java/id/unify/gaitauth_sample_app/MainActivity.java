@@ -66,6 +66,7 @@ import id.unify.sdk.gaitauth.GaitAuthException;
 import id.unify.sdk.gaitauth.GaitFeature;
 import id.unify.sdk.gaitauth.GaitModel;
 import id.unify.sdk.gaitauth.GaitModelException;
+import okhttp3.FormBody;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 
@@ -383,9 +384,14 @@ public class MainActivity
                     }
                 }
             }
-            FeatureData data = new FeatureData(Base64.encodeToString(outputStream.toByteArray(), Base64.DEFAULT));
+            String base64String = Base64.encodeToString(outputStream.toByteArray(), Base64.DEFAULT);
+            System.out.println(base64String);
+            String json = String.format("{\"features\":\"%s\"}", base64String);
+            System.out.println(json);
+            okhttp3.RequestBody body = okhttp3.RequestBody.create(
+                    MediaType.parse("application/json"), json);
 
-            okhttp3.Request request = new okhttp3.Request.Builder().url(String.format("%s/api/features/store", serverUrl)).post(okhttp3.RequestBody.create(MediaType.get("application/json"), outputStream.toByteArray())).build();
+            okhttp3.Request request = new okhttp3.Request.Builder().url(String.format("%s/api/feature/store", serverUrl)).post(body).build();
             try {
                 okhttp3.Response response = client.newCall(request).execute();
                 if (!response.isSuccessful()) throw new IOException("Unexpected code " + response);
@@ -425,9 +431,14 @@ public class MainActivity
                     }
                 }
             }
-            FeatureData data = new FeatureData(Base64.encodeToString(outputStream.toByteArray(), Base64.DEFAULT));
+            String base64String = Base64.encodeToString(outputStream.toByteArray(), Base64.DEFAULT);
+            System.out.println(base64String);
+            String json = String.format("{\"features\":\"%s\"}", base64String);
+            System.out.println(json);
+            okhttp3.RequestBody body = okhttp3.RequestBody.create(
+                    MediaType.parse("application/json"), json);
 
-            okhttp3.Request request = new okhttp3.Request.Builder().url(String.format("%s/api/features/compare", serverUrl)).post(okhttp3.RequestBody.create(MediaType.get("application/json"), outputStream.toByteArray())).build();
+            okhttp3.Request request = new okhttp3.Request.Builder().url(String.format("%s/api/feature/compare", serverUrl)).post(body).build();
             try {
                 okhttp3.Response response = client.newCall(request).execute();
                 if (!response.isSuccessful()) throw new IOException("Unexpected code " + response);
