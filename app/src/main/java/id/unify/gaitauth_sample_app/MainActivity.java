@@ -25,15 +25,8 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentTransaction;
 
-import com.android.volley.Request;
-import com.android.volley.RequestQueue;
-import com.android.volley.Response;
-import com.android.volley.toolbox.JsonObjectRequest;
-import com.android.volley.toolbox.Volley;
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
-
-import org.json.JSONException;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -41,7 +34,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
 
 import id.unify.gaitauth_sample_app.databinding.ActivityMainBinding;
 import id.unify.gaitauth_sample_app.fragments.FeatureCollectionFragment;
@@ -53,7 +45,6 @@ import id.unify.gaitauth_sample_app.fragments.SelectModelFragment;
 import id.unify.gaitauth_sample_app.fragments.SendFeaturesFragment;
 import id.unify.gaitauth_sample_app.fragments.TestingFragment;
 import id.unify.gaitauth_sample_app.models.CosineData;
-import id.unify.gaitauth_sample_app.models.FeatureData;
 import id.unify.sdk.core.CompletionHandler;
 import id.unify.sdk.core.UnifyID;
 import id.unify.sdk.core.UnifyIDConfig;
@@ -66,7 +57,6 @@ import id.unify.sdk.gaitauth.GaitAuthException;
 import id.unify.sdk.gaitauth.GaitFeature;
 import id.unify.sdk.gaitauth.GaitModel;
 import id.unify.sdk.gaitauth.GaitModelException;
-import okhttp3.FormBody;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 
@@ -385,7 +375,6 @@ public class MainActivity
                 }
             }
             String base64String = Base64.encodeToString(outputStream.toByteArray(), Base64.DEFAULT);
-            System.out.println(base64String);
             String json = String.format("{\"features\":\"%s\"}", base64String);
             System.out.println(json);
             okhttp3.RequestBody body = okhttp3.RequestBody.create(
@@ -432,7 +421,6 @@ public class MainActivity
                 }
             }
             String base64String = Base64.encodeToString(outputStream.toByteArray(), Base64.DEFAULT);
-            System.out.println(base64String);
             String json = String.format("{\"features\":\"%s\"}", base64String);
             System.out.println(json);
             okhttp3.RequestBody body = okhttp3.RequestBody.create(

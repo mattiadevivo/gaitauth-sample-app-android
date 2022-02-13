@@ -124,9 +124,6 @@ public class SendFeaturesFragment extends Fragment {
                 }
                 // update UI needs to be in main thread
                 runOnUiThread(() -> {
-                    int currentUploadedCount = Preferences.getInt(Preferences.FEATURE_UPLOADED_COUNT);
-                    int newUploadedCount = currentUploadedCount + totalUploaded;
-                    Preferences.put(Preferences.FEATURE_UPLOADED_COUNT, newUploadedCount);
                     Preferences.put(Preferences.FEATURE_COLLECTED_COUNT, 0);
                     updateCollectedCountUI(0);
                 });
@@ -150,6 +147,9 @@ public class SendFeaturesFragment extends Fragment {
                 runOnUiThread(() -> {
                     Toast.makeText(context, String.format("Comparison result: %f", cosineSimilarity),
                             Toast.LENGTH_LONG).show();
+                    // Updates count
+                    Preferences.put(Preferences.FEATURE_COLLECTED_COUNT, 0);
+                    updateCollectedCountUI(0);
                 });
             });
         });
